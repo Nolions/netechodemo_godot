@@ -4,11 +4,27 @@ extends Node
 @onready var line_edit: LineEdit = $CenterContainer/VBoxContainer/LineEdit
 @onready var label: Label =  $CenterContainer/VBoxContainer/Label
 
+var ws := WebSocketPeer.new()
+
+
 func _ready():
 	http_request.request_completed.connect(_on_request_completed)
+	var err = ws.connect_to_url("wss://ws.postman-echo.com/raw")
+	if err != OK:
+		print("❌ 無法連線: ", err)
+		
+func _process(_delta):
+	# 你需要持續呼叫 poll 才能收發訊息
+	ws.poll()
+	
+	if ws.get_ready_state() == WebSocketPeer.STATE_OPEN and ws.get_available_packet_count() > 0:
+		var packet = ws.get_packet()
+		var msg = packet.get_string_from_utf8()
+		print("📨 收到訊息: ", msg)
 
 func _on_htt_button_pressed():
 	print("_on_htt_button_pressed")
+	
 	var message = line_edit.text.strip_edges()
 	if message.is_empty():
 		label.text = "❗請輸入訊息"
@@ -19,6 +35,8 @@ func _on_htt_button_pressed():
 		"message": message
 	}
 	var json_body = JSON.stringify(payload)
+
+	ws.send_text(json_body)
 
 	# 設定 headers
 	var headers = [
